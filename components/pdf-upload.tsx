@@ -141,7 +141,10 @@ export function PdfUpload() {
       {analysis ? (
         <>
           <ExtractionPreview analysis={analysis} />
-          <RoastReport report={analysis.report} />
+          <RoastReport
+            report={analysis.report}
+            analysisMode={analysis.analysisMode}
+          />
         </>
       ) : null}
     </div>

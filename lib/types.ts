@@ -29,6 +29,8 @@ export type RoastReport = {
   suggestedNextStep: string;
 };
 
+export type AnalysisMode = "ai" | "mock";
+
 export type RoastApiResponse = {
   fileName: string;
   documentType: DocumentType;
@@ -36,6 +38,7 @@ export type RoastApiResponse = {
   extractedTextPreview: string;
   characterCount: number;
   report: RoastReport;
+  analysisMode: AnalysisMode;
 };
 
 export type RoastApiError = {

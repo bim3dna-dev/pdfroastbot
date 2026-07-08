@@ -33,3 +33,14 @@ Health check:
 ```text
 http://localhost:3000/api/roast
 ```
+
+## OpenAI Setup
+
+AI roast analysis is optional. Without an API key, the app falls back to mock
+analysis.
+
+Create `.env.local`:
+
+```bash
+OPENAI_API_KEY=your_key_here
+```

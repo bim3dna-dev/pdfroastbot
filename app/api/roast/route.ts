@@ -5,8 +5,10 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { createAiRoastReport } from "@/lib/ai-roast";
 import { createMockRoastReport } from "@/lib/mock-roast";
 import { isDocumentType } from "@/lib/types";
+import type { AnalysisMode } from "@/lib/types";
 import type { RoastApiError, RoastApiResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -92,6 +94,21 @@ export async function POST(request: Request) {
       }
 
       const extractedText = extraction.text.trim();
+      let analysisMode: AnalysisMode = "mock";
+      let report = createMockRoastReport(documentTypeField);
+
+      if (extractedText) {
+        try {
+          report = await createAiRoastReport({
+            documentType: documentTypeField,
+            fileName: fileField.name,
+            extractedText
+          });
+          analysisMode = "ai";
+        } catch (error) {
+          console.warn("[api/roast] AI analysis fallback to mock", error);
+        }
+      }
 
       const response: RoastApiResponse = {
         fileName: fileField.name,
@@ -99,7 +116,8 @@ export async function POST(request: Request) {
         pageCount: extraction.pageCount || undefined,
         extractedTextPreview: extractedText.slice(0, TEXT_PREVIEW_LENGTH),
         characterCount: extraction.characterCount,
-        report: createMockRoastReport(documentTypeField)
+        report,
+        analysisMode
       };
 
       return NextResponse.json(response);

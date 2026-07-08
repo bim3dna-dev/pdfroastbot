@@ -1,7 +1,8 @@
-import type { RoastIssue, RoastReport } from "@/lib/types";
+import type { AnalysisMode, RoastIssue, RoastReport } from "@/lib/types";
 
 type RoastReportProps = {
   report: RoastReport;
+  analysisMode: AnalysisMode;
 };
 
 const severityClasses: Record<RoastIssue["severity"], string> = {
@@ -10,13 +11,18 @@ const severityClasses: Record<RoastIssue["severity"], string> = {
   high: "border-red-200 bg-red-50 text-red-800"
 };
 
-export function RoastReport({ report }: RoastReportProps) {
+export function RoastReport({ report, analysisMode }: RoastReportProps) {
   return (
     <section className="mt-8 rounded-lg border border-stone-200 bg-white p-5 shadow-sm md:p-6">
       <div className="grid gap-2">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ember">
-          Roast report
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-ember">
+            Roast report
+          </p>
+          <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700">
+            {analysisMode === "ai" ? "AI analysis" : "Mock analysis"}
+          </span>
+        </div>
         <h2 className="text-2xl font-bold text-stone-950">Your PDF survived. Barely.</h2>
         <p className="max-w-3xl text-stone-700">{report.summary}</p>
       </div>
