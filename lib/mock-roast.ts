@@ -8,7 +8,7 @@ const documentTypeLabels: Record<DocumentType, string> = {
   bim_aec_report: "BIM / AEC report"
 };
 
-export function getMockRoast(documentType: DocumentType): RoastReport {
+export function createMockRoastReport(documentType: DocumentType): RoastReport {
   const label = documentTypeLabels[documentType];
 
   return {
@@ -57,3 +57,5 @@ export function getMockRoast(documentType: DocumentType): RoastReport {
       "Rewrite the first page as an executive skim: one sentence for the point, three bullets for evidence, and one unmistakable next action."
   };
 }
+
+export const getMockRoast = createMockRoastReport;

@@ -1,56 +1,91 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { DocumentTypeSelect } from "@/components/document-type-select";
 import { RoastReport } from "@/components/roast-report";
-import { getMockRoast } from "@/lib/mock-roast";
-import type { DocumentType, RoastReport as RoastReportType } from "@/lib/types";
+import type {
+  DocumentType,
+  RoastApiError,
+  RoastApiResponse
+} from "@/lib/types";
 
 export function PdfUpload() {
   const [documentType, setDocumentType] = useState<DocumentType>("general");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [report, setReport] = useState<RoastReportType | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [analysis, setAnalysis] = useState<RoastApiResponse | null>(null);
 
-  const hasValidPdf = Boolean(fileName) && !error;
+  const hasValidPdf = Boolean(selectedFile) && !error;
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    setReport(null);
+    setAnalysis(null);
 
     if (!file) {
+      setSelectedFile(null);
       setFileName("");
       setError("");
       return;
     }
 
     if (!file.name.toLowerCase().endsWith(".pdf")) {
+      setSelectedFile(null);
       setFileName(file.name);
       setError("That file is not a PDF. Give me something with a .pdf extension.");
       return;
     }
 
+    setSelectedFile(file);
     setFileName(file.name);
     setError("");
   }
 
-  function handleAnalyze() {
-    if (!hasValidPdf || isAnalyzing) {
+  async function handleAnalyze() {
+    if (!selectedFile || !hasValidPdf || isAnalyzing) {
       return;
     }
 
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    setReport(null);
+    setAnalysis(null);
+    setError("");
     setIsAnalyzing(true);
-    timeoutRef.current = setTimeout(() => {
-      setReport(getMockRoast(documentType));
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    formData.append("documentType", documentType);
+
+    try {
+      const response = await fetch("/api/roast", {
+        method: "POST",
+        body: formData
+      });
+
+      const payload = await readRoastResponse(response);
+
+      if (!response.ok) {
+        setError(
+          payload && "error" in payload
+            ? payload.error
+            : "Something went wrong analyzing that PDF."
+        );
+        return;
+      }
+
+      if (!payload || "error" in payload) {
+        setError("The roast engine returned an unexpected response.");
+        return;
+      }
+
+      setAnalysis(payload);
+    } catch (error) {
+      console.error("PDF Roast Bot request failed", error);
+      setError(
+        "Could not reach the roast engine. Check the dev server and terminal logs."
+      );
+    } finally {
       setIsAnalyzing(false);
-    }, 700);
+    }
   }
 
   return (
@@ -99,11 +134,60 @@ export function PdfUpload() {
 
       {isAnalyzing ? (
         <div className="rounded-lg border border-stone-200 bg-white p-5 text-stone-700 shadow-sm">
-          Sharpening the red pen...
+          Extracting PDF text and sharpening the red pen...
         </div>
       ) : null}
 
-      {report ? <RoastReport report={report} /> : null}
+      {analysis ? (
+        <>
+          <ExtractionPreview analysis={analysis} />
+          <RoastReport report={analysis.report} />
+        </>
+      ) : null}
     </div>
   );
+}
+
+type ExtractionPreviewProps = {
+  analysis: RoastApiResponse;
+};
+
+function ExtractionPreview({ analysis }: ExtractionPreviewProps) {
+  return (
+    <details className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+      <summary className="cursor-pointer text-lg font-semibold text-stone-950">
+        Extracted text preview
+      </summary>
+      <div className="mt-4 grid gap-4">
+        <div className="flex flex-wrap gap-3 text-sm text-stone-700">
+          <span className="rounded-full bg-stone-100 px-3 py-1">
+            {analysis.characterCount.toLocaleString()} characters
+          </span>
+          {analysis.pageCount ? (
+            <span className="rounded-full bg-stone-100 px-3 py-1">
+              {analysis.pageCount.toLocaleString()} pages
+            </span>
+          ) : null}
+          <span className="rounded-full bg-stone-100 px-3 py-1">
+            {analysis.fileName}
+          </span>
+        </div>
+
+        <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-stone-200 bg-stone-50 p-4 text-sm leading-6 text-stone-800">
+          {analysis.extractedTextPreview ||
+            "No extractable text was found. This PDF may be scanned/image-only and would require OCR."}
+        </pre>
+      </div>
+    </details>
+  );
+}
+
+async function readRoastResponse(response: Response) {
+  const contentType = response.headers.get("content-type");
+
+  if (contentType?.includes("application/json")) {
+    return (await response.json()) as RoastApiResponse | RoastApiError;
+  }
+
+  return null;
 }
